@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SunForge · Data Scrubber</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #d4a017;
+      --teal: #39d0c8;
+      --danger: #e05252;
+      --success: #3fb950;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --font: 'DM Sans', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 40px;
+      width: 100%;
+      max-width: 640px;
+    }
+    .logo { width: 38px; height: 38px; }
+    .header-text h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; }
+    .header-text p  { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .back-link {
+      margin-left: auto;
+      font-size: .78rem;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 6px;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .back-link:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 20px;
+    }
+
+    /* ── Filters ── */
+    .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    label   { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; color: var(--muted); }
+
+    input, select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: .9rem;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color .15s;
+      appearance: auto;
+    }
+    input:focus, select:focus { border-color: var(--teal); }
+    select option { background: var(--surface); }
+    select option:disabled {
+      color: var(--border);
+      font-style: italic;
+    }
+
+    /* county option scrubbed checkmark */
+    select option.scrubbed::before { content: '✓ '; }
+
+    /* ── Run button ── */
+    .btn-run {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: #0d1117;
+      font-family: var(--font);
+      font-size: .95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: .04em;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-run:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .btn-run:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* ── Notices ── */
+    .notice {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: .82rem;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 640px;
+    }
+    .notice.warn  { background: rgba(212,160,23,.06);  border: 1px solid rgba(212,160,23,.22); color: var(--accent); }
+    .notice.info  { background: rgba(57,208,200,.06);  border: 1px solid rgba(57,208,200,.22); color: var(--teal); }
+    .notice svg   { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: .85rem;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 640px;
+    }
+    .status-bar.running { background: rgba(57,208,200,.08);  border: 1px solid rgba(57,208,200,.25); color: var(--teal); }
+    .status-bar.success { background: rgba(63,185,80,.08);   border: 1px solid rgba(63,185,80,.25);  color: var(--success); }
+    .status-bar.error   { background: rgba(224,82,82,.08);   border: 1px solid rgba(224,82,82,.25);  color: var(--danger); }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ── */
+    .results { display: none; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+    .stat .val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      line-height: 1;
+    }
+    .stat .lbl { font-size: .72rem; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: .06em; }
+    .stat.accent .val { color: var(--accent); }
+    .stat.teal   .val { color: var(--teal); }
+
+    /* ── File list ── */
+    .file-list { display: flex; flex-direction: column; gap: 10px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .file-icon {
+      width: 36px; height: 36px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .72rem; font-weight: 700; font-family: var(--mono);
+      flex-shrink: 0;
+    }
+    .file-icon.hw  { background: rgba(212,160,23,.15); color: var(--accent); }
+    .file-icon.biz { background: rgba(57,208,200,.15); color: var(--teal); }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-meta { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+    .btn-dl {
+      padding: 6px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: .78rem;
+      cursor: pointer;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: color .15s, border-color .15s;
+    }
+    .btn-dl:hover { color: var(--text); border-color: var(--muted); }
+
+    .skipped {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(224,82,82,.06);
+      border: 1px solid rgba(224,82,82,.2);
+      border-radius: 7px;
+      font-size: .78rem;
+      color: var(--danger);
+      display: none;
+    }
+    .archive-note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(139,148,158,.06);
+      border: 1px solid rgba(139,148,158,.2);
+      border-radius: 7px;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+
+    /* ── County legend ── */
+    .county-legend {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .county-legend p { font-size: .75rem; color: var(--muted); margin-bottom: 10px; }
+    .county-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: .74rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .chip.done { border-color: var(--success); color: var(--success); background: rgba(63,185,80,.07); }
+    .chip.done::before { content: '✓ '; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <svg class="logo" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="19" cy="19" r="19" fill="#161b22"/>
+      <circle cx="19" cy="19" r="8" fill="none" stroke="#d4a017" stroke-width="1.5"/>
+      <circle cx="19" cy="19" r="3" fill="#d4a017"/>
+      <line x1="19" y1="4"  x2="19" y2="10" stroke="#d4a017" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="19" y1="28" x2="19" y2="34" stroke="#d4a017" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="4"  y1="19" x2="10" y2="19" stroke="#d4a017" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="28" y1="19" x2="34" y2="19" stroke="#d4a017" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <div class="header-text">
+      <h1>Data Scrubber</h1>
+      <p>Merge · Deduplicate · Split → Homeowners &amp; Businesses</p>
+    </div>
+    <a class="back-link" href="/">← Operator Console</a>
+  </div>
+
+  <!-- Active dig warning -->
+  <div class="notice warn" id="notice-running">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 3.5v4.25a.75.75 0 0 1-1.5 0V4.5a.75.75 0 0 1 1.5 0zm-.75 7a.875.875 0 1 1 0-1.75.875.875 0 0 1 0 1.75z"/>
+    </svg>
+    <span>A dig is currently running — <strong id="notice-county">Dallas</strong> page <strong id="notice-page">?</strong> of <strong id="notice-total">?</strong>. You can scrub previous output now; new records will appear after it finishes.</span>
+  </div>
+
+  <!-- All-scrubbed notice -->
+  <div class="notice info" id="notice-all-done">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.78 5.78-4.5 4.5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L6.75 9.69l3.97-3.97a.75.75 0 0 1 1.06 1.06z"/>
+    </svg>
+    <span>All counties have been scrubbed. Run again anytime to re-process with updated output files.</span>
+  </div>
+
+  <!-- Filters card -->
+  <div class="card">
+    <h2>Filters</h2>
+    <div class="filters">
+      <label>
+        County
+        <select id="filter-county">
+          <option value="">All counties</option>
+          <option value="Dallas">Dallas</option>
+          <option value="Tarrant">Tarrant</option>
+          <option value="Collin">Collin</option>
+          <option value="Denton">Denton</option>
+          <option value="Ellis">Ellis</option>
+          <option value="Johnson">Johnson</option>
+          <option value="Kaufman">Kaufman</option>
+          <option value="Parker">Parker</option>
+          <option value="Rockwall">Rockwall</option>
+        </select>
+      </label>
+      <label>
+        Min. assessed value
+        <input id="filter-value" type="number" placeholder="e.g. 400000" min="0" step="10000" />
+      </label>
+    </div>
+    <button class="btn-run" id="btn-run" onclick="runScrub()">RUN SCRUBBER</button>
+
+    <!-- County status chips -->
+    <div class="county-legend" id="county-legend" style="display:none;">
+      <p>Scrub status by county</p>
+      <div class="county-chips" id="county-chips"></div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="status-bar">
+    <div class="spinner" id="spinner"></div>
+    <span id="status-msg">Processing…</span>
+  </div>
+
+  <!-- Results card -->
+  <div class="card results" id="results">
+    <h2>Results</h2>
+    <div class="stat-grid">
+      <div class="stat">        <div class="val" id="stat-raw">—</div>      <div class="lbl">Raw loaded</div></div>
+      <div class="stat">        <div class="val" id="stat-deduped">—</div>  <div class="lbl">After dedup</div></div>
+      <div class="stat accent"> <div class="val" id="stat-hw">—</div>       <div class="lbl">Homeowners</div></div>
+      <div class="stat teal">   <div class="val" id="stat-biz">—</div>      <div class="lbl">Businesses</div></div>
+    </div>
+    <div class="archive-note" id="archive-note" style="display:none;"></div>
+    <div class="file-list" id="file-list"></div>
+    <div class="skipped" id="skipped-notice"></div>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const ALL_COUNTIES = ['Dallas','Tarrant','Collin','Denton','Ellis','Johnson','Kaufman','Parker','Rockwall'];
+
+    // ── On load: check dig status + scrub status ──────────────────────────────
+    async function init() {
+      await Promise.all([checkDigStatus(), loadScrubStatus()]);
+    }
+
+    async function checkDigStatus() {
+      try {
+        const d = await fetch(`${API}/api/status`).then(r => r.json());
+        const s = d.run_state;
+        if (s && s.status === 'running') {
+          document.getElementById('notice-county').textContent = s.current_county || '—';
+          document.getElementById('notice-page').textContent   = s.current_page  || '—';
+          document.getElementById('notice-total').textContent  = s.total_pages   || '—';
+          show('notice-running');
+        }
+      } catch {}
+    }
+
+    async function loadScrubStatus() {
+      try {
+        const d = await fetch(`${API}/api/scrub-status`).then(r => r.json());
+        applyCountyStatus(d.all_scrubbed, d.counties || []);
+      } catch {}
+    }
+
+    function applyCountyStatus(allScrubbed, scrubbed) {
+      const sel   = document.getElementById('filter-county');
+      const chips = document.getElementById('county-chips');
+      const legend = document.getElementById('county-legend');
+
+      chips.innerHTML = '';
+      let doneCount = 0;
+
+      ALL_COUNTIES.forEach(c => {
+        const isDone = allScrubbed || scrubbed.includes(c);
+        if (isDone) doneCount++;
+
+        // Dropdown: disable done counties
+        const opt = sel.querySelector(`option[value="${c}"]`);
+        if (opt) {
+          opt.disabled = isDone;
+          opt.text = isDone ? `${c}  ✓` : c;
+        }
+
+        // Chip row
+        const chip = document.createElement('span');
+        chip.className = 'chip' + (isDone ? ' done' : '');
+        chip.textContent = c;
+        chips.appendChild(chip);
+      });
+
+      // Show chips if any county has been processed
+      if (doneCount > 0) legend.style.display = 'block';
+
+      // Show all-done banner if every county is scrubbed
+      if (doneCount === ALL_COUNTIES.length || allScrubbed) show('notice-all-done');
+
+      // If current selection is now disabled, reset to All
+      const cur = sel.value;
+      if (cur) {
+        const opt = sel.querySelector(`option[value="${cur}"]`);
+        if (opt && opt.disabled) sel.value = '';
+      }
+    }
+
+    // ── Run ───────────────────────────────────────────────────────────────────
+    async function runScrub() {
+      const btn    = document.getElementById('btn-run');
+      const bar    = document.getElementById('status-bar');
+      const msg    = document.getElementById('status-msg');
+      const county = document.getElementById('filter-county').value.trim();
+      const minVal = parseFloat(document.getElementById('filter-value').value) || 0;
+
+      btn.disabled = true;
+      document.getElementById('results').style.display = 'none';
+      bar.className = 'status-bar running';
+      show('status-bar');
+      document.getElementById('spinner').style.display = 'block';
+      msg.textContent = 'Loading and merging CSV files…';
+
+      try {
+        const res  = await fetch(`${API}/api/scrub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ county: county || null, min_value: minVal }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.error) {
+          bar.className = 'status-bar error';
+          document.getElementById('spinner').style.display = 'none';
+          msg.textContent = data.error || 'Scrub failed — check that output folder has CSV files.';
+          return;
+        }
+
+        showResults(data);
+        bar.className = 'status-bar success';
+        document.getElementById('spinner').style.display = 'none';
+        msg.textContent = `Done — ${fmt(data.homeowners)} homeowners and ${fmt(data.businesses)} businesses saved.`;
+
+        // Reload scrub status so just-processed county gets disabled
+        await loadScrubStatus();
+
+      } catch {
+        bar.className = 'status-bar error';
+        document.getElementById('spinner').style.display = 'none';
+        msg.textContent = 'Could not reach SunForge. Make sure app.py is running.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ── Results display ───────────────────────────────────────────────────────
+    function showResults(d) {
+      document.getElementById('stat-raw').textContent     = fmt(d.raw);
+      document.getElementById('stat-deduped').textContent = fmt(d.deduped);
+      document.getElementById('stat-hw').textContent      = fmt(d.homeowners);
+      document.getElementById('stat-biz').textContent     = fmt(d.businesses);
+
+      const list = document.getElementById('file-list');
+      list.innerHTML = '';
+      if (d.homeowners_path) list.appendChild(fileRow('hw',  basename(d.homeowners_path), `${fmt(d.homeowners)} homeowners · sorted by assessed value`));
+      if (d.businesses_path) list.appendChild(fileRow('biz', basename(d.businesses_path), `${fmt(d.businesses)} businesses · sorted by assessed value`));
+
+      const sk = document.getElementById('skipped-notice');
+      if (d.skipped_files && d.skipped_files.length) {
+        sk.style.display = 'block';
+        sk.textContent = `⚠ ${d.skipped_files.length} file(s) skipped: ${d.skipped_files.join(', ')}`;
+      } else {
+        sk.style.display = 'none';
+      }
+
+      const an = document.getElementById('archive-note');
+      if (d.archived && d.archived.length) {
+        an.style.display = 'block';
+        an.textContent = `📦 ${d.archived.length} raw file(s) moved to output/archive/ — not deleted, just out of the way.`;
+      } else {
+        an.style.display = 'none';
+      }
+
+      document.getElementById('results').style.display = 'block';
+    }
+
+    function fileRow(cls, name, meta) {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      const dlHref = `${API}/api/output-file/output/${name}`;
+      item.innerHTML = `
+        <div class="file-icon ${cls}">${cls === 'hw' ? 'HW' : 'BIZ'}</div>
+        <div class="file-info">
+          <div class="file-name">${name}</div>
+          <div class="file-meta">${meta}</div>
+        </div>
+        <a class="btn-dl" href="${dlHref}" download="${name}">Download</a>
+      `;
+      return item;
+    }
+
+    function fmt(n)      { return n == null ? '—' : Number(n).toLocaleString(); }
+    function basename(p) { return p.replace(/\\/g, '/').split('/').pop(); }
+    function show(id)    { document.getElementById(id).style.display = 'flex'; }
+
+    init();
+  </script>
+</body>
+</html>
