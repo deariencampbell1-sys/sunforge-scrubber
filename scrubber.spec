@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+﻿# -*- mode: python ; coding: utf-8 -*-
 
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
@@ -40,7 +40,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='SunForgeScubber',
+    name='SunForgeScrubber',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -55,3 +55,4 @@ exe = EXE(
     entitlements_file=None,
     icon='scrubber.ico',
 )
+
