@@ -17,13 +17,7 @@ a = Analysis(
         'scrubber',
         'flask',
         'flask_cors',
-        'pandas',
-        'sqlite3',
-        'json',
-        'threading',
         'webview',
-        'pythoncom',
-        'win32api',
     ] + pandas_hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -55,4 +49,3 @@ exe = EXE(
     entitlements_file=None,
     icon='scrubber.ico',
 )
-

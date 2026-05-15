@@ -21,14 +21,15 @@ else:
     _DATA_DIR   = Path(os.environ.get('APPDATA', str(Path.home()))) / 'SunForge'
 
 _STARTUP_LOG = _DATA_DIR / 'scrubber_startup.log'
+_GUI_ENV = 'SUNFORGE_SCRUBBER_GUI'
 
 def _log(msg):
     try:
         _DATA_DIR.mkdir(parents=True, exist_ok=True)
         with _STARTUP_LOG.open('a', encoding='utf-8') as fp:
             fp.write(f'{time.strftime("%Y-%m-%d %H:%M:%S")} {msg}\n')
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f'Unable to write startup log {_STARTUP_LOG}: {exc}', file=sys.stderr)
 
 # Ensure the scrubber module and HTML are importable / findable
 sys.path.insert(0, str(_BUNDLE_DIR))
@@ -66,7 +67,17 @@ def _alert(title, message):
         root.withdraw()
         tkinter.messagebox.showerror(title, message)
     except Exception:
-        pass
+        _log('Unable to show startup alert:\n' + traceback.format_exc())
+
+def _start_webview(webview):
+    gui = os.environ.get(_GUI_ENV, '').strip()
+    if gui:
+        _log(f'Starting pywebview with {_GUI_ENV}={gui}')
+        webview.start(gui=gui, debug=False)
+        return
+
+    _log('Starting pywebview with platform default GUI backend')
+    webview.start(debug=False)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == '__main__':
@@ -94,6 +105,15 @@ if __name__ == '__main__':
         min_size=(720, 540),
         text_select=True,
     )
-    webview.start(gui='edgechromium', debug=False)
+    try:
+        _start_webview(webview)
+    except Exception:
+        error = traceback.format_exc()
+        _log('pywebview failed:\n' + error)
+        _alert(
+            'SunForge Scrubber — window error',
+            'The Scrubber window could not be opened. Check the startup log for details.',
+        )
+        raise
     _log('Window closed')
     sys.exit(0)
