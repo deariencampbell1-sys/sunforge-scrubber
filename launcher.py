@@ -117,6 +117,6 @@ if __name__ == '__main__':
             'SunForge Scrubber — window error',
             'The Scrubber window could not be opened. Check the startup log for details.',
         )
-        raise
+        sys.exit(1)
     _log('Window closed')
     sys.exit(0)
