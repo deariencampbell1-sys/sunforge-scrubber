@@ -29,7 +29,10 @@ def _log(msg):
         with _STARTUP_LOG.open('a', encoding='utf-8') as fp:
             fp.write(f'{time.strftime("%Y-%m-%d %H:%M:%S")} {msg}\n')
     except Exception as exc:
-        print(f'Unable to write startup log {_STARTUP_LOG}: {exc}', file=sys.stderr)
+        # sys.stderr is None in windowed PyInstaller builds — guard before writing
+        stderr = sys.stderr or sys.__stderr__
+        if stderr is not None:
+            print(f'Unable to write startup log {_STARTUP_LOG}: {exc}', file=stderr)
 
 # Ensure the scrubber module and HTML are importable / findable
 sys.path.insert(0, str(_BUNDLE_DIR))
