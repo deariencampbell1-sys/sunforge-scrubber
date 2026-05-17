@@ -22,8 +22,7 @@ from pathlib import Path
 
 import pandas as pd
 
-HOME = Path.home()
-OUTPUT_DIR = HOME / "sunforge" / "output"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "sunforge" / "output"
 
 _BIZ_PATTERN = re.compile(
     r"\b(llc|inc|corp|ltd|lp|lllp|trust|hoa|assoc|association|bank|church|"
