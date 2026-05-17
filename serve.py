@@ -15,8 +15,8 @@ from flask_cors import CORS
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)
 
-HOME       = Path.home()
-OUTPUT_DIR = HOME / "sunforge" / "output"
+# Sibling repo: scrubber lives alongside sunforge/ in the workspace.
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "sunforge" / "output"
 
 
 @app.route("/")
@@ -58,7 +58,7 @@ def api_scrub():
 
 @app.route("/api/output-file/<path:relpath>")
 def output_file(relpath):
-    target = HOME / "sunforge" / relpath
+    target = OUTPUT_DIR.parent / relpath
     if not target.exists():
         return jsonify({"error": "file not found"}), 404
     return send_file(str(target), as_attachment=True)
@@ -66,4 +66,4 @@ def output_file(relpath):
 
 if __name__ == "__main__":
     print(f"Scrubber UI → http://localhost:7434")
-    app.run(host="0.0.0.0", port=7434, debug=False)
+    app.run(host="127.0.0.1", port=7434, debug=False)
