@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pandas as pd
 
+# Sibling repo: scrubber lives alongside sunforge/ in the workspace.
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "sunforge" / "output"
 
 _BIZ_PATTERN = re.compile(
